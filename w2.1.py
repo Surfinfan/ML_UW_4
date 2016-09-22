@@ -4,7 +4,7 @@ import numpy as np                       # dense matrices
 from scipy.sparse import csr_matrix      # sparse matrices
 from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics.pairwise import euclidean_distances
-%matplotlib inline
+
 
 
 def load_sparse_csr(filename):
@@ -61,7 +61,7 @@ def has_top_words(word_count_vector):
 wiki = sframe.SFrame('..//w2-a1//people_wiki.gl/')
 wiki = wiki.add_row_number()
 
-# El conteo de palabras de cada articulo nos lo dan, aunque se podría extraer por nuestros propios medios (explorar sklearn.CountVectorize)
+# El conteo de palabras de cada articulo nos lo dan, aunque se podria extraer por nuestros propios medios (explorar sklearn.CountVectorize)
 word_count = load_sparse_csr('..//w2-a1//people_wiki_word_count.npz')
 map_index_to_word = sframe.SFrame('..//w2-a1//people_wiki_map_index_to_word.gl/')
 
@@ -91,7 +91,7 @@ combined_words = obama_words.join(barrio_words, on='word')
 combined_words = combined_words.rename({'count':'Obama', 'count.1':'Barrio'})
 combined_words.sort('Obama', ascending=False)
 
-# Quiz Question: Cuantas entradas de la wikipedia tienen esas mismas 5 palabras mas comunes en su artículo?
+# Quiz Question: Cuantas entradas de la wikipedia tienen esas mismas 5 palabras mas comunes en su articulo?
 
 common_words = set(combined_words.sort('Obama', ascending=False)[0:5]['word'])
 
@@ -181,7 +181,7 @@ obama_biden = euclidean_distances(obama_count,biden_count)
 print "Distancia Obama-Biden: ", obama_biden
 
 
-# Biden está lejos porque penalizmaos documentos más largos sobre los cortos. Vamos a comporbarlo:
+# Biden esta lejos porque penalizmaos documentos mas largos sobre los cortos. Vamos a comporbarlo:
 
 # Compute length of all documents
 def compute_length(row):
@@ -198,7 +198,7 @@ print nearest_neighbors_euclidean
 # To see how these document lengths compare to the lengths of other documents in the corpus, let's make a histogram
 # of the document lengths of Obama's 100 nearest neighbors and compare to a histogram of document lengths for all documents.
 
-plt.figure(figsize=(10.5,4.5))
+# plt.figure(figsize=(10.5,4.5))
 plt.hist(wiki['length'], 50, color='k', edgecolor='None', histtype='stepfilled', normed=True,
          label='Entire Wikipedia', zorder=3, alpha=0.8)
 plt.hist(nearest_neighbors_euclidean['length'], 50, color='r', edgecolor='None', histtype='stepfilled', normed=True,
@@ -214,4 +214,36 @@ plt.title('Distribution of document length')
 plt.xlabel('# of words')
 plt.ylabel('Percentage')
 plt.rcParams.update({'font.size':16})
+plt.tight_layout()
+
+
+#--------------------------------------------------------------------------------------------------------------------
+# Vamos a ver si haciendolo con Cosine distances funciona mejor
+
+model2_tf_idf = NearestNeighbors(algorithm='brute', metric='cosine')
+model2_tf_idf.fit(tf_idf)
+distances, indices = model2_tf_idf.kneighbors(tf_idf[35817], n_neighbors=100)
+neighbors = sframe.SFrame({'distance':distances.flatten(), 'id':indices.flatten()})
+nearest_neighbors_cosine = wiki.join(neighbors, on='id')[['id', 'name', 'length', 'distance']].sort('distance')
+print nearest_neighbors_cosine
+
+# Let's make a plot to better visualize the effect of having used cosine distance in place of Euclidean on
+# our TF-IDF vectors.
+
+plt.hist(wiki['length'], 50, color='k', edgecolor='None', histtype='stepfilled', normed=True,
+         label='Entire Wikipedia', zorder=3, alpha=0.8)
+plt.hist(nearest_neighbors_euclidean['length'], 50, color='r', edgecolor='None', histtype='stepfilled', normed=True,
+         label='100 NNs of Obama (Euclidean)', zorder=10, alpha=0.8)
+plt.hist(nearest_neighbors_cosine['length'], 50, color='b', edgecolor='None', histtype='stepfilled', normed=True,
+         label='100 NNs of Obama (cosine)', zorder=11, alpha=0.8)
+plt.axvline(x=wiki['length'][wiki['name'] == 'Barack Obama'][0], color='k', linestyle='--', linewidth=4,
+           label='Length of Barack Obama', zorder=2)
+plt.axvline(x=wiki['length'][wiki['name'] == 'Joe Biden'][0], color='g', linestyle='--', linewidth=4,
+           label='Length of Joe Biden', zorder=1)
+plt.axis([0, 1000, 0, 0.04])
+plt.legend(loc='best', prop={'size':15})
+plt.title('Distribution of document length')
+plt.xlabel('# of words')
+plt.ylabel('Percentage')
+plt.rcParams.update({'font.size': 16})
 plt.tight_layout()
